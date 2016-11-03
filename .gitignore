@@ -1,0 +1,11 @@
+# ignore generated files
+*.pyc
+
+# ignore test setup
+1/
+2/
+eval/
+Google Drive/
+ownCloud/
+OneDrive/
+Dropbox/
