@@ -17,8 +17,13 @@ def write(path, data, mode="w"):
     mkdir(directory)
 
     # write
-    with open(path, "a") as f:
+    with open(path, mode) as f:
         f.write(data)
+
+def read(path):
+    # write
+    with open(path, "r") as f:
+        return f.read().rstrip()
 
 def clean(path):
     mkdir(path)
@@ -26,8 +31,13 @@ def clean(path):
         # do not delete excluded items
         if exclude.match(child):
             continue
-        childPath = os.path.join(path, child)
-        if os.path.isfile(childPath):
-            os.remove(childPath)
-        else:
-            shutil.rmtree(childPath)
+        rm(os.path.join(path, child))
+
+def rm(path):
+    if os.path.isfile(path):
+        os.remove(path)
+    else:
+        shutil.rmtree(path)
+
+def exists(path):
+    return os.path.exists(path)

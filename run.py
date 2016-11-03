@@ -1,9 +1,12 @@
 import os, filehelper, tree, sys, filecmp
 
-import tests.example as example
+import tests.add_add as add_add
+import tests.update_update as update_update
+import tests.add_child_remove_parent as add_child_remove_parent
+import tests.update_child_remove_parent as update_child_remove_parent
 
 folders = ["Dropbox", "Google Drive", "OneDrive", "ownCloud"]
-tests = [example]
+tests = [add_add, update_update, add_child_remove_parent, update_child_remove_parent]
 evalDir = "eval"
 
 def getTestName(testModule):
