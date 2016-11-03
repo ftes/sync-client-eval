@@ -1,4 +1,4 @@
-import os, filehelper, tree, sys, filecmp
+import os, filehelper, tree, sys
 
 import tests.add_add as add_add
 import tests.update_update as update_update
@@ -49,8 +49,15 @@ def change(client):
                 test.change1() if client == str(direction) else test.change2()
                 os.chdir(os.path.join("..", ".."))
 
+def getWinningChange(test, folder, client, direction):
+    os.chdir(os.path.join(str(client), folder, getTestName(test) + str(direction)))
+    winningChange = test.getWinningChange()
+    os.chdir(os.path.join("..", "..", ".."))
+    return winningChange
+
+# expects client sync folders in two folders: 1 and 2
 def evaluate():
-    print("Performing evaluation, writinig result to " + evalDir)
+    print("Evaluating, writing result to " + evalDir)
 
     print("Cleaning evaluation directory")
     filehelper.clean(evalDir)
@@ -58,54 +65,27 @@ def evaluate():
     for test in tests:
         testName = getTestName(test)
         print("Evaluation of test " + testName)
-        for folder in folders:
-            print("  for sync client " + folder)
-            # read results for direction 1
-            os.chdir(os.path.join(folder, testName + "1"))
-            winningChange1 = test.getWinningChange()
-            directoryStructure1 = tree.tree(".")
-            os.chdir(os.path.join("..", ".."))
-
-            # read results for direction 2
-            os.chdir(os.path.join(folder, testName + "2"))
-            winningChange2 = test.getWinningChange()
-            directoryStructure2 = tree.tree(".")
-            os.chdir(os.path.join("..", ".."))
-            
-            # output results
-            summaryFile = os.path.join(evalDir, testName, "summary")
-            filehelper.append(summaryFile, "{},{},{}\n".format(folder, winningChange1, winningChange2))
-            filehelper.write(os.path.join(evalDir, testName, folder + "1"), directoryStructure1)
-            filehelper.write(os.path.join(evalDir, testName, folder + "2"), directoryStructure2)
-
-# expects evaluation results in two folders: 1 and 2
-def merge():
-    print("Merging evaluation, writinig result to " + evalDir)
-
-    print("Cleaning evaluation directory")
-    filehelper.clean(evalDir)
-
-    for test in tests:
-        testName = getTestName(test)
-        print("Merging results of test " + testName)
 
         summaryFileName = os.path.join(evalDir, testName)
-        filehelper.write(summaryFileName, "# Sync Client, Result when syncing change 1 first (1/2: change 1/2 won, 0: neiter change won, -1: inconsistent states), Result when syncing change 2 first\n")
-        summaryClient1FileName = os.path.join("1", testName, "summary")
-        summary2ClientFileName = os.path.join("2", testName, "summary")
+        filehelper.write(summaryFileName, "# Sync Client, Result when syncing change 1 first (1/2: change 1/2 won, 0: neither change won, -1: inconsistent states), Result when syncing change 2 first\n")
 
-        with open(summaryClient1FileName, "r") as client1File, open(summary2ClientFileName, "r") as client2File:
-            for folder in folders:
-                # detect inconsistency
-                client1Result = client1File.readline().rstrip().split(",")
-                client2Result = client2File.readline().rstrip().split(",")
-                # different directory contents are also inconsistent
-                if not filecmp.cmp(os.path.join("1", testName, folder + "1"), os.path.join("2", testName, folder + "1")): winningChangeDirection1 = -1
-                if not filecmp.cmp(os.path.join("1", testName, folder + "2"), os.path.join("2", testName, folder + "2")): winningChangeDirection2 = -1
+        for folder in folders:
+            results = []
+            for direction in [1, 2]:
+                # detect winning change only on client 1 (if client 2 has an different state, we detect this through the tree view)
+                winningChange = getWinningChange(test, folder, 1, direction)
 
-                # write result
-                filehelper.append(summaryFileName, "{},{},{}\n".format(folder, winningChangeDirection1, winningChangeDirection2))
+                # detect inconsistency by comparing directory contents
+                treeClient1 = tree.tree(os.path.join("1", folder, testName + str(direction)))
+                treeClient2 = tree.tree(os.path.join("2", folder, testName + str(direction)))
 
+                if treeClient1 != treeClient2:
+                    filehelper.write(os.path.join(evalDir, testName + str(direction), folder + "1"), treeClient1)
+                    filehelper.write(os.path.join(evalDir, testName + str(direction), folder + "2"), treeClient2)
+                    winningChange = -1
+                results.append(winningChange)
+            # write results
+            filehelper.append(summaryFileName, "{},{}\n".format(folder, ",".join(map(str, results))))
         
 
 def run(step, client=None):
@@ -115,10 +95,8 @@ def run(step, client=None):
         change(client)
     elif step == "evaluate":
         evaluate()
-    elif step == "merge":
-        merge()
     else:
-        print("Unrecognized command. Use setup, change, evaluate or merge")
+        print("Unrecognized command. Use setup, change, evaluate")
 
 if __name__ == "__main__":
     run(*sys.argv[1:])
